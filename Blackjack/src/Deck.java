@@ -36,6 +36,7 @@ public class Deck {
 	//Check if its time to shuffle
 	public void checkShuffle(){
 		if(shuffleNextRound){
+			shuffleNextRound = false;
 			System.out.println("SHUFFLING DECK...");
 			this.shuffleDeck();
 			this.location = 0;

@@ -1,7 +1,6 @@
 
 public class Card{
 	
-	//WOW
 	private int id;
 	
 	private int[] values = {
