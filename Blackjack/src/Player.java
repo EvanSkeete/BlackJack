@@ -28,7 +28,7 @@ public class Player{
 		*************************************************************************************************/		
 		
 		public Player(int num){
-			this.playerNumber = num;
+			this.setPlayerNumber(num);
 		}
 		
 		/************************************************************************************************
@@ -100,6 +100,14 @@ public class Player{
 
 		public void setNumHands(int numHands) {
 			this.numHands = numHands;
+		}
+
+		public int getPlayerNumber() {
+			return playerNumber;
+		}
+
+		public void setPlayerNumber(int playerNumber) {
+			this.playerNumber = playerNumber;
 		}
 
 		

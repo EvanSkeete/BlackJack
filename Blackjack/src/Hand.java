@@ -1,4 +1,5 @@
 import java.util.ArrayList;
+import java.util.Iterator;
 
 /*******************************************************************************************************
  * 											HAND CLASS		
@@ -65,9 +66,11 @@ public class Hand {
 		}
 		
 		//Delete those values that are greater than 21
-		for(int i = 0; i < values.size(); i++){
-			if(values.get(i) > 21){
-				values.remove(i);
+		Iterator<Integer> valuesIterator = values.iterator();
+		while(valuesIterator.hasNext()){
+			int value = (Integer) valuesIterator.next();
+			if(value > 21){
+				valuesIterator.remove();
 			}
 		}
 		
@@ -96,9 +99,15 @@ public class Hand {
 	//Print the possible values of the hand
 	public void printValues(){
 		if(!isBust()){
-			System.out.print(values.get(0));
-			for(int i = 1; i < values.size(); i++){
-				System.out.println(" or " + values.get(i));
+			if(isBlackjack() && cards.size() == 2){
+				System.out.print("Blackjack!");
+			}
+			else{
+				System.out.print(values.get(0));
+				for(int i = 1; i < values.size(); i++){
+					System.out.println(" or " + values.get(i));
+				}
+			
 			}
 		}
 		else{

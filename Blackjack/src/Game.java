@@ -1,6 +1,7 @@
 import java.util.*;
 
 
+
 /******************************************************************************************************
  * 											GAME CLASS		
  * 
@@ -10,7 +11,8 @@ import java.util.*;
  * TODO: Enforce max/min buy in, don't allow negative funds
  * TODO: Split up main loop into functions
  * TODO: Allow split hands
- * TODO: Blackjack pays 3:2
+ * TODO: Guard all inputs
+ * TODO: Blackjack shouldn't be pushed is dealer doesn't have blackjack
  * 													
 *******************************************************************************************************/
 
@@ -82,14 +84,16 @@ public class Game {
 	
 	//Double down
 	public void doubleDown(Player player){
-		System.out.println("Double down for how much? (0 - " + player.getBet() + ")");
+		int bet = player.getBet();
+		
+		System.out.println("Double down for how much? (0 - " + Math.min(bet,player.getCash()-bet) + ")");
 		try{
 			int doubleAmt = input.nextInt();
-			if(doubleAmt < 0 || doubleAmt > player.getBet()){
+			if((doubleAmt < 0 || doubleAmt > bet) || ((doubleAmt + bet) > player.getCash())){
 				throw(new Exception("Invalid amount"));
 			}
 			else{
-				player.setBet(player.getBet() + doubleAmt);
+				player.setBet(bet + doubleAmt);
 			}
 		}catch(Exception e){
 			System.out.println("Invalid amount, try again");
@@ -163,6 +167,63 @@ public class Game {
 		}	
 	}
 	
+	//Set the number of players in the game
+	public void setNumPlayers(){
+		System.out.println("How many players? 1-4");
+	    numPlayers = Integer.parseInt(input.nextLine());
+	    while(numPlayers <0 || numPlayers >4){
+			System.out.println("Invalid amount, try again");
+		    numPlayers = Integer.parseInt(input.nextLine());
+	    }
+	    addPlayers();
+		System.out.println("");
+	}
+	
+	//Handle all player's buy-ins 
+	public void buyIn(){
+		for(int i=1;i<=numPlayers;i++){
+			System.out.println("Player " + (i) + ", enter your buy in (" + minBuyIn + " - " + maxBuyIn + ")");
+			int in = Integer.parseInt(input.nextLine());
+			while(in > maxBuyIn || in < minBuyIn){
+				System.out.println("Invalid amount, try again");
+				in = Integer.parseInt(input.nextLine());
+			}
+			getPlayer(i).setCash(in);
+	    }
+	}
+	
+	//Handle all players placing bets
+	public void placeBets(){
+		for(int i=1; i<=numPlayers; i++){
+    		System.out.println("Player " + getPlayer(i).getPlayerNumber() + " place your bet");
+    		int bet = input.nextInt();
+    		while((getPlayer(i).getCash() - bet) < 0){
+    			System.out.println("Not enough funds, try a differnt amount");
+    			bet = input.nextInt();
+    		}
+    		getPlayer(i).setBet(bet);
+    	}
+	}
+	
+	//Draw dealer's cards
+	public void drawDealerCards(){
+		dealer.getHand(1).computeValues();
+    	while(!dealer.getHand(1).isBust() && dealer.getHand(1).getValues().get(0) < 17){
+    		Card card = deck.drawCard();
+    		dealer.getHand(1).give(card);
+    		System.out.println("Dealer drew a " + card.getName() + " of " + card.getSuit());
+    		dealer.getHand(1).computeValues();
+    	}
+	}
+	
+	//Reset player states 
+	public void reset(){
+		for(int i = 0; i <= numPlayers; i ++){
+			Player currentPlayer = players.get(i);
+			currentPlayer.reset();
+		}
+	}
+	
 	/************************************************************************************************
  	* 											MAIN GAME LOOP		
  	* 													
@@ -172,16 +233,10 @@ public class Game {
 		welcome();
 
 		//Set number of players
-		System.out.println("How many players?");
-	    numPlayers = Integer.parseInt(input.nextLine());
-	    addPlayers();
-		System.out.println("");
+		setNumPlayers();
 
 	    //Buy in:
-	    for(int i=1;i<=numPlayers;i++){
-			System.out.println("Player " + (i) + ", enter your buy in (" + minBuyIn + " - " + maxBuyIn + ")");
-		    getPlayer(i).setCash(Integer.parseInt(input.nextLine()));
-	    }
+	    buyIn();
 		System.out.println("");
 
 	    
@@ -191,10 +246,7 @@ public class Game {
 	    	deck.checkShuffle();
 	    	
 	    	//Place bets
-	    	for(int i=1; i<=numPlayers; i++){
-	    		System.out.println("Player " + i + " place your bet");
-	    		getPlayer(i).setBet(input.nextInt());
-	    	}
+	    	placeBets();
 	    	System.out.println("");
 	    	
 	    	for(int i = 0; i <= numPlayers; i++){
@@ -210,86 +262,83 @@ public class Game {
 	    	Card dealerUpCard = dealer.getHand(1).getCard(1);
 	    	dealer.getHand(1).printCard(1);
 
-	    	for(int i=1; i<=numPlayers; i++){
-	    		
-				System.out.println("********************");
-		    	//Reveal Player cards
-				Player currentPlayer = getPlayer(i); 
-				//Print display player's hand
-				System.out.println("Player " + i + " is showing:");
-				currentPlayer.getHand(1).printCards();
-				//Display player's totals
-				System.out.println("Player " + i + "'s hand's value is:");
-				currentPlayer.getHand(1).printValues();
-				System.out.println("");
-	    	
-	    
-	    	
-				//Play the hands	
+	    	if(dealerUpCard.getValue() == 10){
 	    		System.out.println("");
-		    	
-	    		//Check for insurance condition 
-		    	if(dealerUpCard.getName() == "Ace" && !currentPlayer.getHand(1).isBlackjack()){
-		    		//TODO: Branch 1 (insurance)
-		    		boolean ins = askIns("Insurance");
-		    		if(ins){
-		    			//Branch insurance
-			    		System.out.println("You asked for insurance");
-		    		}
-		    		else{
-		    			//Branch no insurance
-			    		System.out.println("Ok no insurance for you");
-		    		}
-		    	}
-		    	
-		    	//check for even money condition
-		    	else if(dealerUpCard.getName() == "Ace" && currentPlayer.getHand(1).isBlackjack()){
-		    		//TODO: Branch (even money)
-		    		boolean ins = askIns("Even money");
-		    		if(ins){
-		    			//Branch insurance
-			    		System.out.println("You asked for even money");
-		    		}
-		    		else{
-		    			//Branch no insurance
-			    		System.out.println("Ok no even money for you");
-		    		}
-		    	}
-		    	
-		    	//check for possible dealer blackjack
-		    	else if(dealerUpCard.getValue() == 10){
-		    		//TODO: Branch 2 (check for blackjack)
-		    		System.out.println("Dealer is checking for blackjack");
-		    		if(dealer.getHand(1).isBlackjack()){
-		    			//Branch dealer has blackjack
-		    			System.out.println("Dealer has blackjack");
-		    		}
-		    		else{
-		    			System.out.println("Dealer has no blackjack");
-			    		playRound(currentPlayer);
-
-		    		}
-
-		    	}
-		    	
-		    	//Normal play, no dealer blackjack
-		    	else{
-		    		playRound(currentPlayer);
-		    			
-		    		}
-		    	}
+				System.out.println("********************");
+	    		System.out.println("Dealer is checking for blackjack");
+	    	}
 	    	
+    		if(dealer.getHand(1).isBlackjack() && dealerUpCard.getValue() != 11){
+    			if(dealerUpCard.getValue() == 10) {System.out.println("Dealer has blackjack");}
+    		}
+    		else{
+    			if(dealerUpCard.getValue() == 10) {System.out.println("Dealer has no blackjack");}
+    			
+    			for(int i=1; i<=numPlayers; i++){
+        			System.out.println("");
+					System.out.println("********************");
+			    	//Reveal Player cards
+					Player currentPlayer = getPlayer(i); 
+					//Print display player's hand
+					System.out.println("Player " + getPlayer(i).getPlayerNumber() + " is showing:");
+					currentPlayer.getHand(1).printCards();
+					//Display player's totals
+					System.out.println("Player " + getPlayer(i).getPlayerNumber() + "'s hand's value is:");
+					currentPlayer.getHand(1).printValues();
+					System.out.println("");
+		    	
+		    
+		    	
+					//Play the hands	
+		    		System.out.println("");
+			    	
+		    		
+		    		//Check for insurance condition 
+			    	if(dealerUpCard.getName() == "Ace" && !currentPlayer.getHand(1).isBlackjack()){
+				    		boolean ins = askIns("Insurance");
+				    		if(ins){
+				    			//Branch insurance
+					    		System.out.println("Set insurance amount: 0 - " + (int)(currentPlayer.getBet()/2));
+					    		currentPlayer.setInsurance(input.nextInt());
+				    		}
+				    		else{
+				    			//Branch no insurance
+					    		System.out.println("Ok no insurance for you");
+				    		}
+			    	}
+			    	
+			    	//Check for even money condition
+			    	else if(dealerUpCard.getName() == "Ace" && currentPlayer.getHand(1).isBlackjack()){
+				    		boolean ins = askIns("Even money");
+				    		if(ins){
+				    			//Branch insurance
+					    		System.out.println("You asked for even money");
+					    		currentPlayer.setInsurance((int)(currentPlayer.getBet()/2));
+				    		}
+				    		else{
+				    			//Branch no insurance
+					    		System.out.println("Ok no even money for you");
+				    		
+				    		}
+			    	}
+			    	  	
+			    	//Normal play, no dealer blackjack
+			    	playRound(currentPlayer);
+		    					
+			   	}
+
+    		}
+
+	    	
+	    	
+	    		    	
 	    	//Dealer draws his cards
+    		System.out.println("");
+			System.out.println("********************");
     		System.out.println("Dealer is showing: ");
     		dealer.getHand(1).printCards();
 
-	    	dealer.getHand(1).computeValues();
-	    	while(!dealer.getHand(1).isBust() && dealer.getHand(1).getValues().get(0) < 17){
-	    		Card card = deck.drawCard();
-	    		dealer.getHand(1).give(card);
-	    		System.out.println("Dealer drew a " + card.getName() + " of " + card.getSuit());
-	    		dealer.getHand(1).computeValues();
-	    	}
+    		drawDealerCards();
     		System.out.println("Dealer's hand's value is: ");
 	    	dealer.getHand(1).printValues();
     		System.out.println("");
@@ -299,12 +348,19 @@ public class Game {
     		for(int i = 1; i <= numPlayers; i ++){
     			Player currentPlayer = players.get(i);
     			int result = checkWin(currentPlayer);
-				System.out.println("Player " + i);
+				System.out.println("Player " + getPlayer(i).getPlayerNumber());
     			switch (result){
 	    			case 1:
-	    				System.out.println("You win!");
-	    				currentPlayer.setCash(currentPlayer.getCash() + currentPlayer.getBet());
-	    				break;
+	    				if(!currentPlayer.getHand(1).isBlackjack()){
+		    				System.out.println("You win!");
+		    				currentPlayer.setCash(currentPlayer.getCash() + currentPlayer.getBet());
+		    				break;
+	    				}
+	    				else{
+		    				System.out.println("Blackjack pays 3:2!");
+		    				currentPlayer.setCash(currentPlayer.getCash() + (int)(currentPlayer.getBet() * 1.5));
+		    				break;
+	    				}
 	    			case 2:
 	    				System.out.println("You lose!");
 	    				currentPlayer.setCash(currentPlayer.getCash() - currentPlayer.getBet());
@@ -313,14 +369,37 @@ public class Game {
 	    				System.out.println("Push");
 	    				break;
     			}
+    			if(dealer.getHand(1).isBlackjack()){
+    				if(currentPlayer.getInsurance() > 0){
+    					System.out.println("Insurance/Even money awarded");
+    					currentPlayer.setCash(currentPlayer.getCash() + currentPlayer.getInsurance()*2);
+    				}
+    				
+    			}
     			System.out.println("Your total funds are: $" + currentPlayer.getCash());
     			System.out.println("");
     		}
     		
     		//Reset 
-    		for(int i = 0; i <= numPlayers; i ++){
-    			Player currentPlayer = players.get(i);
-    			currentPlayer.reset();
+    		reset();
+    		
+    		//Eliminate losing players
+    		Iterator<Player> playerIterator = players.iterator();
+    		playerIterator.next(); //Skip the dealer
+    		while(playerIterator.hasNext()){
+    			Player player = playerIterator.next();
+    			if(player.getCash() <= 0){
+    				playerIterator.remove();
+    				System.out.println("Player " + player.getPlayerNumber() + " is out of funds. See you later.");
+    				System.out.println("");
+    				numPlayers --;
+    			}
+    		}
+    		
+    		//Check for game over condition
+    		if(numPlayers == 0){
+    			System.out.println("GAME OVER");
+				exit = true;
     		}
 	    }
 	    
@@ -347,6 +426,7 @@ public class Game {
 		System.out.println("Dealer is showing an Ace, would you like " + s + "? (y/n)");
 		
 		try{
+			char toss = input.nextLine().charAt(0);
 			char ins = input.nextLine().charAt(0);
 			switch(ins){
 			case 'y': 
